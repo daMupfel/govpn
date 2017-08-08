@@ -416,7 +416,7 @@ func (grp *Group) generateNextIP() (data.IPAddr, error) {
 	for i := invNet + 2; (i & invMask) == (invNet & invMask); i++ {
 		found := false
 		for _, c := range grp.Clients {
-			if c.IP == i {
+			if c.IP == swapEndianness(i) {
 				found = true
 				break
 			}
@@ -424,7 +424,7 @@ func (grp *Group) generateNextIP() (data.IPAddr, error) {
 		if found {
 			continue
 		}
-		return i, nil
+		return swapEndianness(i), nil
 	}
 	return 0, errors.New("No more ips")
 }
