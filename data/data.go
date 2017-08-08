@@ -112,3 +112,11 @@ func (v *CreateGroupRequest) Serialize() []byte {
 func (v *CreateGroupResponse) Serialize() []byte {
 	return nil
 }
+
+func (v *ListGroupsRequest) Serialize() []byte {
+	return nil
+}
+
+func (v *ListGroupsResponse) Serialize() []byte {
+	return nil
+}
