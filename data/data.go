@@ -8,6 +8,16 @@ import (
 type IPAddr int32
 type MACAddr int64
 
+type ClientHello struct {
+	Name     string
+	Password string
+}
+
+type ServerHello struct {
+	OK    bool
+	Error string
+}
+
 type CreateGroupRequest struct {
 	Name              string
 	Password          string
@@ -41,7 +51,12 @@ type JoinGroupResponse struct {
 	IP      IPAddr
 	Netmask IPAddr
 	Gateway IPAddr
-	Clients []JoinGroupResponseClient
+	Clients []*JoinGroupResponseClient
+}
+type ListGroupsRequest struct {
+}
+type ListGroupsResponse struct {
+	Groups []string
 }
 
 func IntIPtoNetIP(v IPAddr) net.IP {
@@ -52,8 +67,34 @@ func IntIPtoNetIP(v IPAddr) net.IP {
 	b[3] = byte(v >> 24)
 	return b
 }
+
 func NetIPtoIntIP(b net.IP) IPAddr {
 	return IPAddr(binary.LittleEndian.Uint32(b))
+}
+
+const (
+	PacketTypeServerHello uint8 = iota
+	PacketTypeClientHello
+	PacketTypeJoinGroupRequest
+	PacketTypeJoinGroupResponse
+	PacketTypeCreateGroupRequest
+	PacketTypeCreateGroupResponse
+	PacketTypeListGroupsRequest
+	PacketTypeListGroupsResponse
+)
+
+type packetHeader struct {
+	size           uint16
+	packetType     uint8
+	encryptionType uint8
+}
+
+func (v *ServerHello) Serialize() []byte {
+	return nil
+}
+
+func (v *ClientHello) Serialize() []byte {
+	return nil
 }
 
 func (v *JoinGroupRequest) Serialize() []byte {

@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/subtle"
 	"errors"
+	"net"
 	"strings"
 	"sync"
 
@@ -34,6 +35,30 @@ type Group struct {
 	Clients map[data.MACAddr]*Client
 }
 
+func New() *Instance {
+	return &Instance{
+		ActiveGroups: make(map[string]*Group),
+	}
+}
+
+func (i *Instance) handleClient(c net.Conn) {
+
+}
+
+func (i *Instance) ListenAndServe(n, addr string) error {
+	l, err := net.Listen(n, addr)
+	if err != nil {
+		return err
+	}
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			continue
+		}
+		go i.handleClient(conn)
+	}
+}
+
 func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGroupResponse {
 	i.Lock()
 	defer i.Unlock()
@@ -49,6 +74,14 @@ func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGr
 
 	grp.Lock()
 	defer grp.Unlock()
+
+	if subtle.ConstantTimeCompare([]byte(req.Password), []byte(grp.Password)) != 1 {
+		return &data.JoinGroupResponse{
+			OK:    false,
+			Error: "Invalid password",
+		}
+	}
+
 	ip, err := grp.generateNextIP()
 	if err != nil {
 		return &data.JoinGroupResponse{
@@ -57,13 +90,24 @@ func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGr
 		}
 	}
 
-	if subtle.ConstantTimeCompare([]byte(req.Password), []byte(grp.Password)) != 1 {
-		return &JoinGroupResponse{
-			OK:    false,
-			Error: "Invalid password",
-		}
-	}
+	c.IP = ip
+	clients := make([]*data.JoinGroupResponseClient, 0, len(grp.Clients))
 
+	for _, c := range grp.Clients {
+		clients = append(clients, &data.JoinGroupResponseClient{
+			UserName: c.Name,
+			IP:       c.IP,
+		})
+	}
+	grp.Clients[c.MAC] = c
+
+	return &data.JoinGroupResponse{
+		OK:      true,
+		Clients: clients,
+		Error:   "",
+		Gateway: grp.GatewayIP,
+		Netmask: grp.Mask,
+	}
 }
 
 func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.CreateGroupResponse {
