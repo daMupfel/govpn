@@ -42,7 +42,9 @@ func New() *Instance {
 }
 
 func (i *Instance) handleClient(c net.Conn) {
+	for {
 
+	}
 }
 
 func (i *Instance) ListenAndServe(n, addr string) error {
@@ -56,6 +58,19 @@ func (i *Instance) ListenAndServe(n, addr string) error {
 			continue
 		}
 		go i.handleClient(conn)
+	}
+}
+
+func (i *Instance) ListGroups(req *data.ListGroupsRequest) *data.ListGroupsResponse {
+	i.Lock()
+	defer i.Unlock()
+
+	s := make([]string, 0, len(i.ActiveGroups))
+	for _, v := range i.ActiveGroups {
+		s = append(s, v.Name)
+	}
+	return &data.ListGroupsResponse{
+		Groups: s,
 	}
 }
 

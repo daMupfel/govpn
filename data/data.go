@@ -83,10 +83,10 @@ const (
 	PacketTypeListGroupsResponse
 )
 
-type packetHeader struct {
-	size           uint16
-	packetType     uint8
-	encryptionType uint8
+type PacketHeader struct {
+	PacketSize     uint16
+	PacketType     uint8
+	EncryptionType uint8
 }
 
 func (v *ServerHello) Serialize() []byte {
