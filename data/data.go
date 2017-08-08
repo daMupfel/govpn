@@ -16,6 +16,7 @@ type MACAddr int64
 type ClientHello struct {
 	Name     string
 	Password string
+	MAC      MACAddr
 }
 
 type ServerHello struct {
@@ -64,6 +65,39 @@ type ListGroupsResponse struct {
 	Groups []string
 }
 
+type LeaveGroupRequest struct {
+}
+type LeaveGroupResponse struct {
+	OK    bool
+	Error string
+}
+type ClientJoinedGroupNotification struct {
+	Name string
+	IP   IPAddr
+	MAC  MACAddr
+}
+type ClientLeftGroupNotification struct {
+	Name string
+	IP   IPAddr
+	MAC  MACAddr
+}
+
+const (
+	BroadcastMAC MACAddr = 0x0000ffffffffffff
+)
+
+func MACAddrToHWAddr(a MACAddr) net.HardwareAddr {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(a))
+	return net.HardwareAddr(b[0:6])
+}
+
+func HWAddrToMACAddr(a net.HardwareAddr) MACAddr {
+	b := make([]byte, 8)
+	copy(b[0:6], a)
+	return MACAddr(binary.LittleEndian.Uint64(b))
+}
+
 func IntIPtoNetIP(v IPAddr) net.IP {
 	b := make([]byte, 4)
 	b[0] = byte(v)
@@ -78,14 +112,19 @@ func NetIPtoIntIP(b net.IP) IPAddr {
 }
 
 const (
-	PacketTypeServerHello uint8 = iota
+	PacketTypeEthernetFrame uint8 = iota
+	PacketTypeServerHello
 	PacketTypeClientHello
-	PacketTypeJoinGroupRequest
-	PacketTypeJoinGroupResponse
 	PacketTypeCreateGroupRequest
 	PacketTypeCreateGroupResponse
+	PacketTypeJoinGroupRequest
+	PacketTypeJoinGroupResponse
+	PacketTypeLeaveGroupRequest
+	PacketTypeLeaveGroupResponse
 	PacketTypeListGroupsRequest
 	PacketTypeListGroupsResponse
+	PacketTypeClientJoinedGroupNotification
+	PacketTypeClientLeftGroupNotification
 )
 
 type PacketHeader struct {
@@ -130,6 +169,26 @@ func (v *ListGroupsRequest) Serialize() []byte {
 }
 
 func (v *ListGroupsResponse) Serialize() []byte {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func (v *LeaveGroupRequest) Serialize() []byte {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func (v *LeaveGroupResponse) Serialize() []byte {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func (v *ClientJoinedGroupNotification) Serialize() []byte {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func (v *ClientLeftGroupNotification) Serialize() []byte {
 	b, _ := json.Marshal(v)
 	return b
 }
