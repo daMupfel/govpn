@@ -62,19 +62,28 @@ func Encrypt(encType uint8, data []byte, cryptoContext interface{}) ([]byte, err
 	}
 }
 
-func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte) ([]byte, error) {
+func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, w io.Writer) error {
 	b, err := Encrypt(encryptionType, buffer, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	l := len(b) + 4
 	if l >= 0x10000 {
-		return nil, errors.New("Packet overflow")
+		return errors.New("Packet overflow")
 	}
 	buf := make([]byte, l)
 	binary.BigEndian.PutUint16(buf, uint16(l))
 	buf[2] = packetType
 	buf[3] = encryptionType
 	copy(buf[4:], b[:])
-	return buf, nil
+
+	offset := 0
+	for offset < l {
+		n, err := w.Write(buf[offset:])
+		if err != nil {
+			return err
+		}
+		offset += n
+	}
+	return nil
 }

@@ -2,11 +2,15 @@ package server
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/daMupfel/govpn/crypto"
 	"github.com/daMupfel/govpn/data"
 )
 
@@ -17,6 +21,8 @@ type Instance struct {
 }
 
 type Client struct {
+	conn net.Conn
+
 	Name string
 
 	MAC data.MACAddr
@@ -41,9 +47,58 @@ func New() *Instance {
 	}
 }
 
-func (i *Instance) handleClient(c net.Conn) {
-	for {
+func (c *Client) handleClientHello(b []byte) (err error) {
+	p := data.ClientHello{}
+	err = json.Unmarshal(b, &p)
+	if err != nil {
+		return
+	}
+	c.Name = p.Name
+	fmt.Println("Client with credentials (" + c.Name + "," + p.Password + ") connected")
+	sh := &data.ServerHello{
+		OK:    true,
+		Error: "",
+	}
+	b := sh.Serialize()
+	err = crypto.EncryptAndSerializePacket(0, data.PacketTypeServerHello, b, c)
+	return
+}
+func (c *Client) handleCreateGroupRequest(b []byte) (err error) {
+	p := &data.CreateGroupRequest{}
+	err = json.Unmarshal(b, &p)
+	if err != nil {
+		return
+	}
+}
 
+func (i *Instance) handleClient(c net.Conn) {
+	client := &Client{
+		conn: c,
+	}
+	for {
+		hdr, pkt, err := crypto.DeserializeAndDecryptPacket(c)
+		if err != nil {
+			fmt.Println(err)
+			c.Close()
+			return
+		}
+		switch hdr.PacketType {
+		case data.PacketTypeClientHello:
+			err = client.handleClientHello(pkt)
+		case data.PacketTypeCreateGroupRequest:
+			err = client.handleCreateGroupRequest(pkt)
+		case data.PacketTypeJoinGroupRequest:
+			err = client.handleJoinGroupRequest(pkt)
+		case data.PacketTypeListGroupsRequest:
+			err = client.handleListGroupRequest(pkt)
+		default:
+			err = errors.New("Invalid packet type: " + strconv.FormatUint(uint64(hdr.PacketType), 10))
+		}
+		if err != nil {
+			fmt.Println(err)
+			c.Close()
+			return
+		}
 	}
 }
 
