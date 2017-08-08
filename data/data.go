@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 
+	"strconv"
+
 	"github.com/daMupfel/govpn/crypto"
 )
 
@@ -250,4 +252,12 @@ func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, 
 		offset += n
 	}
 	return nil
+}
+
+func IPToString(i IPAddr) string {
+	ip := IntIPtoNetIP(i)
+	return strconv.FormatUint(uint64(ip[0]), 10) + "." +
+		strconv.FormatUint(uint64(ip[1]), 10) + "." +
+		strconv.FormatUint(uint64(ip[2]), 10) + "." +
+		strconv.FormatUint(uint64(ip[3]), 10)
 }
