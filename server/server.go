@@ -360,6 +360,7 @@ func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGr
 }
 
 func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.CreateGroupResponse {
+	var err error
 	i.Lock()
 	defer i.Unlock()
 	name := strings.ToLower(req.Name)
@@ -377,11 +378,19 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 		Mask:     req.NetworkSubnetMask,
 		Clients:  make(map[data.MACAddr]*Client),
 	}
+
+	grp.GatewayIP, err = grp.generateGatewayIP()
+	if err != nil {
+		return &data.CreateGroupResponse{
+			OK:    false,
+			Error: err.Error(),
+		}
+	}
+
 	grp.Clients[c.MAC] = c
 	c.group = grp
 
 	i.ActiveGroups[name] = grp
-	grp.GatewayIP = grp.generateGatewayIP()
 
 	ip, err := grp.generateNextIP()
 	if err != nil {
@@ -399,8 +408,12 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 	}
 }
 
-func (g *Group) generateGatewayIP() data.IPAddr {
-	return g.Net + 0x1000000
+func (g *Group) generateGatewayIP() (data.IPAddr, error) {
+	ip := swapEndianness(swapEndianness(g.Net) + 1)
+	if ip&g.Mask == g.Net&g.Mask {
+		return ip, nil
+	}
+	return 0, errors.New("No gateway address found. Empty subnet?")
 }
 func swapEndianness(i data.IPAddr) data.IPAddr {
 	return ((i & 0xff) << 24) |
