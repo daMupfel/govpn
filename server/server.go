@@ -402,12 +402,18 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 func (g *Group) generateGatewayIP() data.IPAddr {
 	return g.Net + 0x1000000
 }
-
+func swapEndianness(i data.IPAddr) data.IPAddr {
+	return ((i & 0xff) << 24) |
+		((i & 0xff00) << 8) |
+		((i & 0xff0000) >> 8) |
+		((i & 0xff000000) >> 24)
+}
 func (grp *Group) generateNextIP() (data.IPAddr, error) {
 	grp.Lock()
 	defer grp.Unlock()
-
-	for i := grp.Net + 2; i&grp.Mask == grp.Net&grp.Mask; i++ {
+	invNet := swapEndianness(grp.Net)
+	invMask := swapEndianness(grp.Mask)
+	for i := invNet + 2; (i & invMask) == (invNet & invMask); i++ {
 		found := false
 		for _, c := range grp.Clients {
 			if c.IP == i {

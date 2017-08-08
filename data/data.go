@@ -10,8 +10,8 @@ import (
 	"github.com/daMupfel/govpn/crypto"
 )
 
-type IPAddr int32
-type MACAddr int64
+type IPAddr uint32
+type MACAddr uint64
 
 type ClientHello struct {
 	Name     string
