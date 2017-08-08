@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/daMupfel/govpn/crypto"
 	"github.com/daMupfel/govpn/data"
 )
 
@@ -21,7 +20,8 @@ type Instance struct {
 }
 
 type Client struct {
-	conn net.Conn
+	conn   net.Conn
+	server *Instance
 
 	Name string
 
@@ -59,24 +59,49 @@ func (c *Client) handleClientHello(b []byte) (err error) {
 		OK:    true,
 		Error: "",
 	}
-	b := sh.Serialize()
-	err = crypto.EncryptAndSerializePacket(0, data.PacketTypeServerHello, b, c)
-	return
+	b = sh.Serialize()
+	return data.EncryptAndSerializePacket(0, data.PacketTypeServerHello, b, c.conn)
 }
+
 func (c *Client) handleCreateGroupRequest(b []byte) (err error) {
-	p := &data.CreateGroupRequest{}
+	p := data.CreateGroupRequest{}
 	err = json.Unmarshal(b, &p)
 	if err != nil {
 		return
 	}
+	resp := c.server.CreateGroup(&p, c)
+	b = resp.Serialize()
+	return data.EncryptAndSerializePacket(0, data.PacketTypeCreateGroupResponse, b, c.conn)
+}
+
+func (c *Client) handleJoinGroupRequest(b []byte) (err error) {
+	p := data.JoinGroupRequest{}
+	err = json.Unmarshal(b, &p)
+	if err != nil {
+		return
+	}
+	resp := c.server.JoinGroup(&p, c)
+	b = resp.Serialize()
+	return data.EncryptAndSerializePacket(0, data.PacketTypeJoinGroupResponse, b, c.conn)
+}
+func (c *Client) handleListGroupsRequest(b []byte) (err error) {
+	p := data.ListGroupsRequest{}
+	err = json.Unmarshal(b, &p)
+	if err != nil {
+		return
+	}
+	resp := c.server.ListGroups(&p)
+	b = resp.Serialize()
+	return data.EncryptAndSerializePacket(0, data.PacketTypeListGroupsResponse, b, c.conn)
 }
 
 func (i *Instance) handleClient(c net.Conn) {
 	client := &Client{
-		conn: c,
+		conn:   c,
+		server: i,
 	}
 	for {
-		hdr, pkt, err := crypto.DeserializeAndDecryptPacket(c)
+		hdr, pkt, err := data.DeserializeAndDecryptPacket(c)
 		if err != nil {
 			fmt.Println(err)
 			c.Close()
@@ -90,7 +115,7 @@ func (i *Instance) handleClient(c net.Conn) {
 		case data.PacketTypeJoinGroupRequest:
 			err = client.handleJoinGroupRequest(pkt)
 		case data.PacketTypeListGroupsRequest:
-			err = client.handleListGroupRequest(pkt)
+			err = client.handleListGroupsRequest(pkt)
 		default:
 			err = errors.New("Invalid packet type: " + strconv.FormatUint(uint64(hdr.PacketType), 10))
 		}
