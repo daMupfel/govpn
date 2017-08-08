@@ -199,7 +199,7 @@ func (i *Instance) handleClient(c net.Conn) {
 		conn:        c,
 		server:      i,
 		group:       nil,
-		packetQueue: make(chan *queuedPacket, 5),
+		packetQueue: make(chan *queuedPacket, 50000),
 	}
 	go client.dequeueAndSendPackets()
 	for {
