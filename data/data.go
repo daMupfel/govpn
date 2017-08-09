@@ -241,11 +241,11 @@ func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, 
 	if l >= 0x10000 {
 		return errors.New("Packet overflow")
 	}
-	buf := make([]byte, l)
+	buf := make([]byte, l+4)
 	binary.BigEndian.PutUint16(buf, uint16(l))
 	buf[2] = packetType
 	buf[3] = encryptionType
-
+	l += 4
 	fmt.Println("Packet with length", l)
 
 	copy(buf[4:], b[:])
