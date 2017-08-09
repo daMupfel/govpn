@@ -68,6 +68,7 @@ func (c *Client) handleClientHello(b []byte) (err error) {
 	p := data.ClientHello{}
 	err = json.Unmarshal(b, &p)
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 	c.Name = p.Name
@@ -214,6 +215,7 @@ func (i *Instance) handleClient(c net.Conn) {
 			c.Close()
 			return
 		}
+		fmt.Println("Handling packet")
 		switch hdr.PacketType {
 		case data.PacketTypeEthernetFrame:
 			err = client.handleEthernetFrame(pkt)
