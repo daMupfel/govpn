@@ -468,6 +468,7 @@ func (g *Group) recvPacketWorker() {
 			ep, _ := ethernetLayer.(*layers.Ethernet)
 			dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
 			g.Lock()
+			fmt.Printf("%v\n", g.Clients)
 			if dstMAC == data.BroadcastMAC {
 				fmt.Println("Sending broadcast packet to all clients")
 				for _, client := range g.Clients {
@@ -479,6 +480,7 @@ func (g *Group) recvPacketWorker() {
 					}
 				}
 			} else {
+				//fmt.Printf("%v\n", g.Clients)
 				client, ok := g.Clients[dstMAC]
 				if !ok {
 					fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
