@@ -154,7 +154,7 @@ func (c *Client) JoinGroup(groupName, password string) error {
 	c.SubnetMask = resp.Netmask
 
 	err = c.iface.Configure(net.IPNet{
-		IP:   data.IntIPtoNetIP(c.Network),
+		IP:   data.IntIPtoNetIP(c.IP),
 		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
 	}, data.IntIPtoNetIP(c.Gateway))
 	if err != nil {
@@ -217,7 +217,7 @@ func (c *Client) CreateGroup(groupName, password, network string) error {
 	c.Network = resp.IP & resp.Netmask
 	c.SubnetMask = resp.Netmask
 	err = c.iface.Configure(net.IPNet{
-		IP:   data.IntIPtoNetIP(c.Network),
+		IP:   data.IntIPtoNetIP(c.IP),
 		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
 	}, data.IntIPtoNetIP(c.Gateway))
 	if err != nil {

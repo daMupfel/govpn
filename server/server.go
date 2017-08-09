@@ -420,7 +420,7 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 		}
 	}
 
-	err = grp.iface.Configure(net.IPNet{IP: data.IntIPtoNetIP(grp.Net), Mask: net.IPMask(data.IntIPtoNetIP(grp.Mask))}, data.IntIPtoNetIP(grp.GatewayIP))
+	err = grp.iface.Configure(net.IPNet{IP: data.IntIPtoNetIP(grp.GatewayIP), Mask: net.IPMask(data.IntIPtoNetIP(grp.Mask))}, data.IntIPtoNetIP(grp.GatewayIP))
 	if err != nil {
 		return &data.CreateGroupResponse{
 			OK:    false,
