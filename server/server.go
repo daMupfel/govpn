@@ -386,6 +386,7 @@ func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGr
 		OK:      true,
 		Clients: clients,
 		Error:   "",
+		IP:      ip,
 		Gateway: grp.GatewayIP,
 		Netmask: grp.Mask,
 	}
