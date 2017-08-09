@@ -9,6 +9,8 @@ import (
 
 	"github.com/daMupfel/govpn/adapter"
 	"github.com/daMupfel/govpn/data"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 type ClientInfo struct {
@@ -276,6 +278,16 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			}
 			switch hdr.PacketType {
 			case data.PacketTypeEthernetFrame:
+				pkt := gopacket.NewPacket(buf, layers.LayerTypeEthernet, gopacket.Default)
+				ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+				if ethernetLayer == nil {
+					fmt.Println("Packet does not contain ethernet frame...")
+					continue
+				}
+				ep, _ := ethernetLayer.(*layers.Ethernet)
+				if ep.EthernetType == layers.EthernetTypeARP {
+					fmt.Println("ARP from " + data.MACAddrToString(data.HWAddrToMACAddr(ep.SrcMAC)))
+				}
 				fmt.Println("Queueing an ethernet packet for TAP")
 				c.iface.SendPacketQueue <- buf
 				continue
