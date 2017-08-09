@@ -527,7 +527,7 @@ func (grp *Group) generateNextIP() (data.IPAddr, error) {
 	for i := invNet + 2; (i & invMask) == (invNet & invMask); i++ {
 		found := false
 		for _, c := range grp.Clients {
-			fmt.Println(c.Name + ": " + data.IPToString(c.IP))
+			//fmt.Println(c.Name + ": " + data.IPToString(c.IP))
 			if c.IP == swapEndianness(i) {
 				found = true
 				break

@@ -15,6 +15,10 @@ func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
 		"mask="+net.IP(ipNet.Mask).String(), "gateway="+gateway.String()).Run()
 }
 
+func stopDevice(name string) error {
+	return nil
+}
+
 func getConfig() water.Config {
 	cfg := water.Config{
 		DeviceType: water.TAP,

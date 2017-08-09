@@ -65,17 +65,18 @@ func (t *TAPInterface) Close() {
 	t.iface.Close()
 }
 func (t *TAPInterface) Stop() {
+	stopDevice(t.Name)
 	/*
-	t.stopWorkerChan <- 0
+		t.stopWorkerChan <- 0
 
-	t.iface.Close()
-	t.iface, _ = water.New(getConfig())
+		t.iface.Close()
+		t.iface, _ = water.New(getConfig())
 
-	t.RecvPacketQueue = make(chan []byte, 16)
+		t.RecvPacketQueue = make(chan []byte, 16)
 
-	t.SendPacketQueue = make(chan []byte, 16)
+		t.SendPacketQueue = make(chan []byte, 16)
 
-	t.stopWorkerChan = make(chan int)*/
+		t.stopWorkerChan = make(chan int)*/
 }
 
 func (t *TAPInterface) readWorker() {
