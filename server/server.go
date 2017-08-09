@@ -450,7 +450,7 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 
 	grp.Clients[c.MAC] = c
 	c.group = grp
-
+	c.IP = ip
 	i.ActiveGroups[name] = grp
 	fmt.Println("Client " + c.Name + " created " + grp.Name)
 
