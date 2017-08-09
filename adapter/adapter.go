@@ -75,7 +75,7 @@ func (t *TAPInterface) Stop() {
 }
 
 func (t *TAPInterface) readWorker() {
-	fmt.Println("readWorker started")
+	//fmt.Println("readWorker started")
 	for {
 		select {
 		case v := <-t.stopWorkerChan:
@@ -90,13 +90,13 @@ func (t *TAPInterface) readWorker() {
 				fmt.Println(err)
 				continue
 			}
-			fmt.Println("Got a packet from TAP")
+			//fmt.Println("Got a packet from TAP")
 			t.RecvPacketQueue <- b[:n]
 		}
 	}
 }
 func (t *TAPInterface) writeWorker() {
-	fmt.Println("writeWorker started")
+	//fmt.Println("writeWorker started")
 	for {
 		select {
 		case v := <-t.stopWorkerChan:
@@ -105,7 +105,7 @@ func (t *TAPInterface) writeWorker() {
 			}
 			return
 		case p := <-t.SendPacketQueue:
-			fmt.Println("Sending packet to TAP driver")
+			//fmt.Println("Sending packet to TAP driver")
 			n, err := t.iface.Write(p)
 			if err != nil {
 				fmt.Println(err)

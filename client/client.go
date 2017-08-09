@@ -9,8 +9,6 @@ import (
 
 	"github.com/daMupfel/govpn/adapter"
 	"github.com/daMupfel/govpn/data"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 )
 
 type ClientInfo struct {
@@ -252,9 +250,9 @@ func (c *Client) setAdapterAddress() error {
 }
 
 func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, error) {
-	if packetTypeToRespond == 0xFF {
+	/*if packetTypeToRespond == 0xFF {
 		fmt.Println("startEthernetPacketHandler started")
-	}
+	}*/
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
@@ -268,9 +266,9 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("Packet with type", hdr.PacketType)
+			//fmt.Println("Packet with type", hdr.PacketType)
 			if packetTypeToRespond != 0xFF && hdr.PacketType == packetTypeToRespond {
-				fmt.Println("Starting workers")
+				//fmt.Println("Starting workers")
 				go c.startEthernetPacketHandler(0xFF)
 				go c.readAndQueuePackets()
 				go c.sendPacketWorker()
@@ -278,7 +276,7 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			}
 			switch hdr.PacketType {
 			case data.PacketTypeEthernetFrame:
-				pkt := gopacket.NewPacket(buf, layers.LayerTypeEthernet, gopacket.Default)
+				/*pkt := gopacket.NewPacket(buf, layers.LayerTypeEthernet, gopacket.Default)
 				ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 				if ethernetLayer == nil {
 					fmt.Println("Packet does not contain ethernet frame...")
@@ -288,7 +286,7 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 				if ep.EthernetType == layers.EthernetTypeARP {
 					fmt.Println("ARP from " + data.MACAddrToString(data.HWAddrToMACAddr(ep.SrcMAC)))
 				}
-				fmt.Println("Queueing an ethernet packet for TAP")
+				fmt.Println("Queueing an ethernet packet for TAP")*/
 				c.iface.SendPacketQueue <- buf
 				continue
 			case data.PacketTypeClientJoinedGroupNotification:
@@ -323,7 +321,7 @@ func (c *Client) handleLeaveGroup(buf []byte) {
 }
 
 func (c *Client) handleGroupClientChange(joined bool, buf []byte) {
-	fmt.Println("handleGroupClientChange")
+	//fmt.Println("handleGroupClientChange")
 	if joined {
 		resp := data.ClientJoinedGroupNotification{}
 		err := json.Unmarshal(buf, &resp)
@@ -350,7 +348,7 @@ func (c *Client) handleGroupClientChange(joined bool, buf []byte) {
 	}
 }
 func (c *Client) sendPacketWorker() {
-	fmt.Println("sendPacketWorker started")
+	//fmt.Println("sendPacketWorker started")
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
@@ -360,7 +358,7 @@ func (c *Client) sendPacketWorker() {
 			}
 			return
 		case p := <-c.packetQueue:
-			fmt.Println("Sending a packet to server with type:", p.packetType)
+			//fmt.Println("Sending a packet to server with type:", p.packetType)
 			err := data.EncryptAndSerializePacket(c.encType, p.packetType, p.buf, c.conn)
 			if err != nil {
 				fmt.Println("sendPacketWorker: ", err)
@@ -369,7 +367,7 @@ func (c *Client) sendPacketWorker() {
 	}
 }
 func (c *Client) readAndQueuePackets() {
-	fmt.Println("readAndQueuePackets started 13234325")
+	//fmt.Println("readAndQueuePackets started")
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
@@ -379,7 +377,7 @@ func (c *Client) readAndQueuePackets() {
 			}
 			return
 		case p := <-c.iface.RecvPacketQueue:
-			fmt.Println("Queueing an ethernet packet from TAP")
+			//fmt.Println("Queueing an ethernet packet from TAP")
 			c.packetQueue <- &queuedPacket{
 				buf:        p,
 				packetType: data.PacketTypeEthernetFrame,

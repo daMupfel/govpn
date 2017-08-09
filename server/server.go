@@ -100,7 +100,7 @@ func (c *Client) handleEthernetFrame(b []byte) (err error) {
 	ep, _ := ethernetLayer.(*layers.Ethernet)
 	dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
 	srcMAC := data.HWAddrToMACAddr(ep.SrcMAC)
-	fmt.Println("Packet with dstMAC " + data.MACAddrToString(dstMAC))
+	//fmt.Println("Packet with dstMAC " + data.MACAddrToString(dstMAC))
 	c.group.Lock()
 	if dstMAC == c.group.iface.MAC {
 		c.group.iface.SendPacketQueue <- b
@@ -229,7 +229,7 @@ func (i *Instance) handleClient(c net.Conn) {
 			c.Close()
 			return
 		}
-		fmt.Println("Handling packet with type", hdr.PacketType)
+		//fmt.Println("Handling packet with type", hdr.PacketType)
 		switch hdr.PacketType {
 		case data.PacketTypeEthernetFrame:
 			err = client.handleEthernetFrame(pkt)
@@ -321,7 +321,7 @@ func (i *Instance) LeaveGroup(c *Client) *data.LeaveGroupResponse {
 		}
 	}
 	c.group.Unlock()
-
+	fmt.Println("Client " + c.Name + " left group " + c.group.Name)
 	c.group = nil
 	return &data.LeaveGroupResponse{
 		OK:    true,
@@ -382,6 +382,7 @@ func (i *Instance) JoinGroup(req *data.JoinGroupRequest, c *Client) *data.JoinGr
 	}
 	grp.Clients[c.MAC] = c
 	c.group = grp
+	fmt.Println("Client " + c.Name + " joined " + grp.Name)
 	return &data.JoinGroupResponse{
 		OK:      true,
 		Clients: clients,
@@ -451,6 +452,7 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 	c.group = grp
 
 	i.ActiveGroups[name] = grp
+	fmt.Println("Client " + c.Name + " created " + grp.Name)
 
 	return &data.CreateGroupResponse{
 		OK:      true,
@@ -475,9 +477,9 @@ func (g *Group) recvPacketWorker() {
 			ep, _ := ethernetLayer.(*layers.Ethernet)
 			dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
 			g.Lock()
-			fmt.Printf("%v\n", g.Clients)
+			//fmt.Printf("%v\n", g.Clients)
 			if dstMAC == data.BroadcastMAC {
-				fmt.Println("Sending broadcast packet to all clients")
+				//fmt.Println("Sending broadcast packet to all clients")
 				for _, client := range g.Clients {
 					buf := make([]byte, len(p))
 					copy(buf, p)
@@ -490,11 +492,11 @@ func (g *Group) recvPacketWorker() {
 				//fmt.Printf("%v\n", g.Clients)
 				client, ok := g.Clients[dstMAC]
 				if !ok {
-					fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
+					//fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
 					g.Unlock()
 					continue
 				}
-				fmt.Println("Sending packet to client " + client.Name)
+				//fmt.Println("Sending packet to client " + client.Name)
 				client.packetQueue <- &queuedPacket{
 					buf:        p,
 					packetType: data.PacketTypeEthernetFrame,
