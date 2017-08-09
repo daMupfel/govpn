@@ -227,6 +227,7 @@ func (i *Instance) handleClient(c net.Conn) {
 		if err != nil {
 			fmt.Println(err)
 			c.Close()
+			i.LeaveGroup(client)
 			return
 		}
 		//fmt.Println("Handling packet with type", hdr.PacketType)
