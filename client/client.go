@@ -148,7 +148,7 @@ func (c *Client) JoinGroup(groupName, password string) error {
 		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return errors.New(resp.Error)
 	}
-
+	fmt.Println("IP: "+data.IPToString(resp.IP), "Gateway: "+data.IPToString(resp.Gateway), "Netmask: "+data.IPToString(resp.Netmask))
 	c.IP = resp.IP
 	c.Gateway = resp.Gateway
 	c.Network = resp.IP & resp.Netmask
