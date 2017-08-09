@@ -53,11 +53,13 @@ func New(name, password, nw, addr string) (*Client, error) {
 		return nil, err
 	}
 
+	fmt.Println("Dial: " + nw + " " + addr)
 	c, err := net.Dial(nw, addr)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("Dial ok")
 	client := &Client{
 		Name:             name,
 		Password:         password,

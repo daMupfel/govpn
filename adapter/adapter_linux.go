@@ -5,6 +5,8 @@ package adapter
 import (
 	"net"
 	"os/exec"
+
+	"github.com/songgao/water"
 )
 
 func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
@@ -13,4 +15,8 @@ func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
 		return err
 	}
 	return exec.Command("ip", "link", "set", "dev", name, "up").Run()
+}
+
+func getConfig() water.Config {
+	return water.Config{DeviceType: water.TAP}
 }

@@ -33,7 +33,7 @@ func Create() (*TAPInterface, error) {
 	t := &TAPInterface{
 		BufferSize: StandardBufferSize,
 	}
-	t.iface, err = water.New(water.Config{DeviceType: water.TAP})
+	t.iface, err = water.New(getConfig())
 	if err != nil {
 		return nil, err
 	}

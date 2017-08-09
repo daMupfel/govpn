@@ -13,10 +13,13 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter Username: ")
 	name, _ := reader.ReadString('\n')
-	fmt.Println("Enter Password: ")
+	fmt.Print("Enter Password: ")
 	password, _ := reader.ReadString('\n')
-	fmt.Println("Enter Server address: ")
+	fmt.Print("Enter Server address: ")
 	addr, _ := reader.ReadString('\n')
+	name = strings.TrimSpace(name)
+	password = strings.TrimSpace(password)
+	addr = strings.TrimSpace(addr)
 
 	c, err := client.New(name, password, "tcp", addr)
 	if err != nil {
