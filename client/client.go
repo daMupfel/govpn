@@ -147,10 +147,21 @@ func (c *Client) JoinGroup(groupName, password string) error {
 		c.stopPacketWorker <- 0
 		return errors.New(resp.Error)
 	}
+
 	c.IP = resp.IP
 	c.Gateway = resp.Gateway
 	c.Network = resp.IP & resp.Netmask
 	c.SubnetMask = resp.Netmask
+
+	err = c.iface.Configure(net.IPNet{
+		IP:   data.IntIPtoNetIP(c.Network),
+		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
+	}, data.IntIPtoNetIP(c.Gateway))
+	if err != nil {
+		c.stopPacketWorker <- 0
+		return err
+	}
+
 	c.OtherClients = make(map[string]*ClientInfo, len(resp.Clients))
 	for _, otherClient := range resp.Clients {
 		c.OtherClients[otherClient.UserName] = &ClientInfo{
@@ -205,6 +216,14 @@ func (c *Client) CreateGroup(groupName, password, network string) error {
 	c.Gateway = resp.Gateway
 	c.Network = resp.IP & resp.Netmask
 	c.SubnetMask = resp.Netmask
+	err = c.iface.Configure(net.IPNet{
+		IP:   data.IntIPtoNetIP(c.Network),
+		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
+	}, data.IntIPtoNetIP(c.Gateway))
+	if err != nil {
+		c.stopPacketWorker <- 0
+		return err
+	}
 	c.OtherClients = make(map[string]*ClientInfo)
 	c.isInGroup = true
 	return nil
@@ -284,6 +303,7 @@ func (c *Client) handleLeaveGroup(buf []byte) {
 		return
 	}
 	c.stopPacketWorker <- 0
+	c.iface.Stop()
 }
 
 func (c *Client) handleGroupClientChange(joined bool, buf []byte) {

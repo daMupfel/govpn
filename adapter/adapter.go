@@ -70,7 +70,8 @@ func (t *TAPInterface) Configure(ipNet net.IPNet, gateway net.IP) error {
 }
 
 func (t *TAPInterface) Stop() {
-
+	t.iface.Close()
+	t.iface, _ = water.New(getConfig())
 }
 
 func (t *TAPInterface) readWorker() {
