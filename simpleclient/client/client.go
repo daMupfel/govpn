@@ -166,7 +166,10 @@ func (c *Client) CreateGroup(groupName, password string) error {
 
 //TODO: set iface ip addr n stuff
 func (c *Client) setAdapterAddress() error {
-
+	return setAdapterAddress(c.iface.Name(), net.IPNet{
+		IP:   data.IntIPtoNetIP(c.IP),
+		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
+	}, data.IntIPtoNetIP(c.Gateway))
 }
 
 func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, error) {
