@@ -243,9 +243,6 @@ func (i *Instance) handleClient(c net.Conn) {
 			err = client.handleListGroupsRequest(pkt)
 		case data.PacketTypeLeaveGroupRequest:
 			err = client.handleLeaveGroupRequest(pkt)
-			if err == nil {
-				return
-			}
 		default:
 			err = errors.New("Invalid packet type: " + strconv.FormatUint(uint64(hdr.PacketType), 10))
 		}
