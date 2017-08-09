@@ -521,8 +521,6 @@ func swapEndianness(i data.IPAddr) data.IPAddr {
 		((i & 0xff000000) >> 24)
 }
 func (grp *Group) generateNextIP() (data.IPAddr, error) {
-	grp.Lock()
-	defer grp.Unlock()
 	invNet := swapEndianness(grp.Net)
 	invMask := swapEndianness(grp.Mask)
 	for i := invNet + 2; (i & invMask) == (invNet & invMask); i++ {
