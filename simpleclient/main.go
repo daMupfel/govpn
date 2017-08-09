@@ -119,7 +119,7 @@ func listGroups(c *client.Client) {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		for g := range res {
+		for _, g := range res {
 			fmt.Println(g)
 		}
 	}

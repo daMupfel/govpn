@@ -18,12 +18,10 @@ type TAPInterface struct {
 
 	BufferSize int
 
-	RecvPacketQueue <-chan []byte
-	SendPacketQueue chan<- []byte
+	RecvPacketQueue chan []byte
+	SendPacketQueue chan []byte
 
-	stopWorkerChan  chan int
-	workerReadChan  chan<- []byte
-	workerWriteChan <-chan []byte
+	stopWorkerChan chan int
 
 	iface *water.Interface
 }
@@ -44,6 +42,12 @@ func Create() (*TAPInterface, error) {
 		return nil, err
 	}
 	t.MAC = data.HWAddrToMACAddr(iface.HardwareAddr)
+
+	t.RecvPacketQueue = make(chan []byte, 16)
+
+	t.SendPacketQueue = make(chan []byte, 16)
+
+	t.stopWorkerChan = make(chan int)
 	return t, nil
 }
 
@@ -53,28 +57,25 @@ func (t *TAPInterface) Configure(ipNet net.IPNet, gateway net.IP) error {
 		return err
 	}
 
-	q1 := make(chan []byte, 16)
-	q2 := make(chan []byte, 16)
-
-	t.RecvPacketQueue = q1
-	t.workerReadChan = q1
-
-	t.SendPacketQueue = q2
-	t.workerWriteChan = q2
-
-	t.stopWorkerChan = make(chan int)
-
 	go t.readWorker()
 	go t.writeWorker()
 	return nil
 }
 
 func (t *TAPInterface) Stop() {
+	t.stopWorkerChan <- 0
 	t.iface.Close()
 	t.iface, _ = water.New(getConfig())
+
+	t.RecvPacketQueue = make(chan []byte, 16)
+
+	t.SendPacketQueue = make(chan []byte, 16)
+
+	t.stopWorkerChan = make(chan int)
 }
 
 func (t *TAPInterface) readWorker() {
+	fmt.Println("readWorker started")
 	for {
 		select {
 		case v := <-t.stopWorkerChan:
@@ -89,12 +90,13 @@ func (t *TAPInterface) readWorker() {
 				fmt.Println(err)
 				continue
 			}
-
-			t.workerReadChan <- b[:n]
+			fmt.Println("Got a packet from TAP")
+			t.RecvPacketQueue <- b[:n]
 		}
 	}
 }
 func (t *TAPInterface) writeWorker() {
+	fmt.Println("writeWorker started")
 	for {
 		select {
 		case v := <-t.stopWorkerChan:
@@ -102,7 +104,8 @@ func (t *TAPInterface) writeWorker() {
 				t.stopWorkerChan <- 1
 			}
 			return
-		case p := <-t.workerWriteChan:
+		case p := <-t.SendPacketQueue:
+			fmt.Println("Sending packet to TAP driver")
 			n, err := t.iface.Write(p)
 			if err != nil {
 				fmt.Println(err)

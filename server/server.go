@@ -95,9 +95,21 @@ func (c *Client) handleEthernetFrame(b []byte) (err error) {
 	}
 	ep, _ := ethernetLayer.(*layers.Ethernet)
 	dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
-	if dstMAC == data.BroadcastMAC {
-		c.group.Lock()
+	srcMAC := data.HWAddrToMACAddr(ep.SrcMAC)
+	fmt.Println("Packet with dstMAC " + data.MACAddrToString(dstMAC))
+	c.group.Lock()
+	if dstMAC == c.group.iface.MAC {
+		c.group.iface.SendPacketQueue <- b
+	} else if dstMAC == data.BroadcastMAC {
+		if c.group.iface.MAC != srcMAC {
+			buf := make([]byte, len(b))
+			copy(buf, b)
+			c.group.iface.SendPacketQueue <- buf
+		}
 		for _, c := range c.group.Clients {
+			if c.MAC == srcMAC {
+				continue
+			}
 			buf := make([]byte, len(b))
 			copy(buf, b)
 			c.packetQueue <- &queuedPacket{
@@ -105,9 +117,7 @@ func (c *Client) handleEthernetFrame(b []byte) (err error) {
 				packetType: data.PacketTypeEthernetFrame,
 			}
 		}
-		c.group.Unlock()
 	} else {
-		c.group.Lock()
 		for _, c := range c.group.Clients {
 			if c.MAC == dstMAC {
 				buf := make([]byte, len(b))
@@ -119,8 +129,8 @@ func (c *Client) handleEthernetFrame(b []byte) (err error) {
 				break
 			}
 		}
-		c.group.Unlock()
 	}
+	c.group.Unlock()
 	return nil
 }
 

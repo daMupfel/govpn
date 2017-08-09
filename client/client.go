@@ -348,6 +348,7 @@ func (c *Client) sendPacketWorker() {
 			}
 			return
 		case p := <-c.packetQueue:
+			fmt.Println("Sending a packet to server with type:", p.packetType)
 			err := data.EncryptAndSerializePacket(c.encType, p.packetType, p.buf, c.conn)
 			if err != nil {
 				fmt.Println("sendPacketWorker: ", err)
@@ -356,7 +357,7 @@ func (c *Client) sendPacketWorker() {
 	}
 }
 func (c *Client) readAndQueuePackets() {
-	fmt.Println("readAndQueuePackets started")
+	fmt.Println("readAndQueuePackets started 13234325")
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
