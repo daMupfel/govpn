@@ -36,6 +36,7 @@ func main() {
 	for {
 		fmt.Println("Enter command: ")
 		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
 		args := strings.Split(input, " ")
 		switch args[0] {
 		case "create":

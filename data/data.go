@@ -211,7 +211,7 @@ func DeserializeAndDecryptPacket(r io.Reader) (*PacketHeader, []byte, error) {
 	pktHdr.PacketSize = binary.BigEndian.Uint16(b)
 	pktHdr.PacketType = b[2]
 	pktHdr.EncryptionType = b[3]
-	fmt.Println("Packet received with length", pktHdr.PacketSize, "and type", pktHdr.PacketType)
+	//fmt.Println("Packet received with length", pktHdr.PacketSize, "and type", pktHdr.PacketType)
 
 	b = make([]byte, pktHdr.PacketSize)
 	offset = 0
@@ -224,7 +224,7 @@ func DeserializeAndDecryptPacket(r io.Reader) (*PacketHeader, []byte, error) {
 		fmt.Println("Read", n, "bytes")
 		offset += n
 	}
-	fmt.Println("Read complete packet")
+	//fmt.Println("Read complete packet")
 	buf, err := crypto.Decrypt(pktHdr.EncryptionType, b, nil)
 	if err != nil {
 		return nil, nil, err
@@ -245,7 +245,7 @@ func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, 
 	binary.BigEndian.PutUint16(buf, uint16(l-4))
 	buf[2] = packetType
 	buf[3] = encryptionType
-	fmt.Println("Packet with length", l)
+	//fmt.Println("Packet with length", l)
 
 	copy(buf[4:], b[:])
 
@@ -257,7 +257,7 @@ func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, 
 		}
 		offset += n
 	}
-	fmt.Println("Packet sent with length", l)
+	//fmt.Println("Packet sent with length", l)
 	return nil
 }
 
@@ -267,4 +267,9 @@ func IPToString(i IPAddr) string {
 		strconv.FormatUint(uint64(ip[1]), 10) + "." +
 		strconv.FormatUint(uint64(ip[2]), 10) + "." +
 		strconv.FormatUint(uint64(ip[3]), 10)
+}
+
+func MACAddrToString(a MACAddr) string {
+	addr := MACAddrToHWAddr(a)
+	return fmt.Sprintf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5])
 }

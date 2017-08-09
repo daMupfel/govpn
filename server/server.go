@@ -215,7 +215,7 @@ func (i *Instance) handleClient(c net.Conn) {
 			c.Close()
 			return
 		}
-		fmt.Println("Handling packet")
+		fmt.Println("Handling packet with type", hdr.PacketType)
 		switch hdr.PacketType {
 		case data.PacketTypeEthernetFrame:
 			err = client.handleEthernetFrame(pkt)
@@ -470,7 +470,7 @@ func (g *Group) recvPacketWorker() {
 			} else {
 				client, ok := g.Clients[dstMAC]
 				if !ok {
-					fmt.Println("Packet not for our clients")
+					fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
 					continue
 				}
 				client.packetQueue <- &queuedPacket{
