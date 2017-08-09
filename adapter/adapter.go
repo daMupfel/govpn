@@ -47,7 +47,7 @@ func Create() (*TAPInterface, error) {
 
 	t.SendPacketQueue = make(chan []byte, 16)
 
-	t.stopWorkerChan = make(chan int)
+	t.stopWorkerChan = make(chan int, 2)
 	return t, nil
 }
 
@@ -64,14 +64,14 @@ func (t *TAPInterface) Configure(ipNet net.IPNet, gateway net.IP) error {
 
 func (t *TAPInterface) Stop() {
 	t.stopWorkerChan <- 0
-	t.iface.Close()
+	/*t.iface.Close()
 	t.iface, _ = water.New(getConfig())
 
 	t.RecvPacketQueue = make(chan []byte, 16)
 
 	t.SendPacketQueue = make(chan []byte, 16)
 
-	t.stopWorkerChan = make(chan int)
+	t.stopWorkerChan = make(chan int)*/
 }
 
 func (t *TAPInterface) readWorker() {
@@ -88,7 +88,7 @@ func (t *TAPInterface) readWorker() {
 			n, err := t.iface.Read(b)
 			if err != nil {
 				fmt.Println(err)
-				continue
+				return
 			}
 			//fmt.Println("Got a packet from TAP")
 			t.RecvPacketQueue <- b[:n]
@@ -109,6 +109,7 @@ func (t *TAPInterface) writeWorker() {
 			n, err := t.iface.Write(p)
 			if err != nil {
 				fmt.Println(err)
+				return
 			} else if n < len(p) {
 				fmt.Println("Could not write complete packet")
 			}

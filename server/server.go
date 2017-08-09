@@ -272,6 +272,7 @@ func (i *Instance) ListenAndServe(n, addr string) error {
 }
 
 func (i *Instance) ListGroups(req *data.ListGroupsRequest) *data.ListGroupsResponse {
+	fmt.Println("Trying to lock")
 	i.Lock()
 	defer i.Unlock()
 
@@ -279,6 +280,7 @@ func (i *Instance) ListGroups(req *data.ListGroupsRequest) *data.ListGroupsRespo
 	for _, v := range i.ActiveGroups {
 		s = append(s, v.Name)
 	}
+	fmt.Println("Returning data")
 	return &data.ListGroupsResponse{
 		Groups: s,
 	}

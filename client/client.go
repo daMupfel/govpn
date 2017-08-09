@@ -70,6 +70,7 @@ func New(name, password, nw, addr string) (*Client, error) {
 		iface:            iface,
 		etherPacketQueue: make(chan []byte, 16),
 		packetQueue:      make(chan *queuedPacket, 16),
+		stopPacketWorker: make(chan int, 2),
 	}
 
 	return client, nil
@@ -296,29 +297,31 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 				c.handleGroupClientChange(false, buf)
 				continue
 			case data.PacketTypeLeaveGroupResponse:
-				c.handleLeaveGroup(buf)
-				continue
+				if c.handleLeaveGroup(buf) {
+					c.iface.Stop()
+					c.stopPacketWorker <- 1
+					return nil, nil
+				}
 			}
 		}
 	}
 }
 
-func (c *Client) handleLeaveGroup(buf []byte) {
-	fmt.Println("handleLeaveGroup")
+func (c *Client) handleLeaveGroup(buf []byte) bool {
 	resp := data.LeaveGroupResponse{}
 	err := json.Unmarshal(buf, &resp)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 	if !resp.OK {
 		fmt.Println(resp.Error)
-		return
+		return false
 	}
-	fmt.Println("left group")
+	c.Lock()
 	c.isInGroup = false
-	c.stopPacketWorker <- 0
-	c.iface.Stop()
+	c.Unlock()
+	return true
 }
 
 func (c *Client) handleGroupClientChange(joined bool, buf []byte) {
@@ -388,7 +391,9 @@ func (c *Client) readAndQueuePackets() {
 }
 
 func (c *Client) ListGroups() ([]string, error) {
+	fmt.Println("Trying to lock")
 	c.Lock()
+	fmt.Println("Lock ok")
 	defer c.Unlock()
 	if c.isInGroup {
 		return nil, errors.New("Already in a group")
@@ -400,12 +405,13 @@ func (c *Client) ListGroups() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("Sent packet")
 	for {
 		hdr, pkt, err := data.DeserializeAndDecryptPacket(c.conn)
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("Received packet")
 		if hdr.PacketType != data.PacketTypeListGroupsResponse {
 			fmt.Println("Unexpected packet type:", hdr.PacketType)
 			continue
