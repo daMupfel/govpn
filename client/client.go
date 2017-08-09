@@ -153,10 +153,7 @@ func (c *Client) JoinGroup(groupName, password string) error {
 	c.Network = resp.IP & resp.Netmask
 	c.SubnetMask = resp.Netmask
 
-	err = c.iface.Configure(net.IPNet{
-		IP:   data.IntIPtoNetIP(c.IP),
-		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
-	}, data.IntIPtoNetIP(c.Gateway))
+	err = c.setAdapterAddress()
 	if err != nil {
 		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return err
@@ -205,23 +202,20 @@ func (c *Client) CreateGroup(groupName, password, network string) error {
 	resp := data.CreateGroupResponse{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return err
 	}
 	if !resp.OK {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return errors.New(resp.Error)
 	}
 	c.IP = resp.IP
 	c.Gateway = resp.Gateway
 	c.Network = resp.IP & resp.Netmask
 	c.SubnetMask = resp.Netmask
-	err = c.iface.Configure(net.IPNet{
-		IP:   data.IntIPtoNetIP(c.IP),
-		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
-	}, data.IntIPtoNetIP(c.Gateway))
+	err = c.setAdapterAddress()
 	if err != nil {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return err
 	}
 	c.OtherClients = make(map[string]*ClientInfo)
@@ -256,10 +250,14 @@ func (c *Client) setAdapterAddress() error {
 }
 
 func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, error) {
+	if packetTypeToRespond == 0xFF {
+		fmt.Println("startEthernetPacketHandler started")
+	}
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
-			if k == 0 {
+			fmt.Println("startEthernetPacketHandler stopping")
+			if k < 2 {
 				c.stopPacketWorker <- k + 1
 			}
 			return nil, errors.New("Stopping worker")
@@ -268,14 +266,17 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("Packet with type ", hdr.PacketType)
-			if hdr.PacketType == packetTypeToRespond {
+			fmt.Println("Packet with type", hdr.PacketType)
+			if packetTypeToRespond != 0xFF && hdr.PacketType == packetTypeToRespond {
+				fmt.Println("Starting workers")
 				go c.startEthernetPacketHandler(0xFF)
 				go c.readAndQueuePackets()
+				go c.sendPacketWorker()
 				return buf, nil
 			}
 			switch hdr.PacketType {
 			case data.PacketTypeEthernetFrame:
+				fmt.Println("Queueing an ethernet packet for TAP")
 				c.iface.SendPacketQueue <- buf
 				continue
 			case data.PacketTypeClientJoinedGroupNotification:
@@ -336,16 +337,36 @@ func (c *Client) handleGroupClientChange(joined bool, buf []byte) {
 		c.otherClientsLock.Unlock()
 	}
 }
-
-func (c *Client) readAndQueuePackets() {
+func (c *Client) sendPacketWorker() {
+	fmt.Println("sendPacketWorker started")
 	for {
 		select {
 		case k := <-c.stopPacketWorker:
-			if k == 0 {
+			fmt.Println("sendPacketWorker stopping")
+			if k < 2 {
+				c.stopPacketWorker <- k + 1
+			}
+			return
+		case p := <-c.packetQueue:
+			err := data.EncryptAndSerializePacket(c.encType, p.packetType, p.buf, c.conn)
+			if err != nil {
+				fmt.Println("sendPacketWorker: ", err)
+			}
+		}
+	}
+}
+func (c *Client) readAndQueuePackets() {
+	fmt.Println("readAndQueuePackets started")
+	for {
+		select {
+		case k := <-c.stopPacketWorker:
+			fmt.Println("readAndQueuePackets stopping")
+			if k < 2 {
 				c.stopPacketWorker <- k + 1
 			}
 			return
 		case p := <-c.iface.RecvPacketQueue:
+			fmt.Println("Queueing an ethernet packet from TAP")
 			c.packetQueue <- &queuedPacket{
 				buf:        p,
 				packetType: data.PacketTypeEthernetFrame,

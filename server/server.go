@@ -472,6 +472,7 @@ func (g *Group) recvPacketWorker() {
 				client, ok := g.Clients[dstMAC]
 				if !ok {
 					fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
+					g.Unlock()
 					continue
 				}
 				fmt.Println("Sending packet to client " + client.Name)
