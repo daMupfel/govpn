@@ -88,6 +88,9 @@ func (c *Client) handleClientHello(b []byte) (err error) {
 }
 
 func (c *Client) handleEthernetFrame(b []byte) (err error) {
+	if c.group == nil {
+		return nil
+	}
 	pkt := gopacket.NewPacket(b, layers.LayerTypeEthernet, gopacket.Default)
 	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
@@ -200,7 +203,7 @@ func (c *Client) handleLeaveGroupRequest(b []byte) (err error) {
 		packetType: data.PacketTypeLeaveGroupResponse,
 	}
 
-	return nil
+	return
 }
 func (c *Client) dequeueAndSendPackets() {
 	for pkt := range c.packetQueue {
@@ -240,6 +243,9 @@ func (i *Instance) handleClient(c net.Conn) {
 			err = client.handleListGroupsRequest(pkt)
 		case data.PacketTypeLeaveGroupRequest:
 			err = client.handleLeaveGroupRequest(pkt)
+			if err == nil {
+				return
+			}
 		default:
 			err = errors.New("Invalid packet type: " + strconv.FormatUint(uint64(hdr.PacketType), 10))
 		}
