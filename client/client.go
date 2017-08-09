@@ -140,11 +140,11 @@ func (c *Client) JoinGroup(groupName, password string) error {
 	resp := data.JoinGroupResponse{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return err
 	}
 	if !resp.OK {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return errors.New(resp.Error)
 	}
 
@@ -158,7 +158,7 @@ func (c *Client) JoinGroup(groupName, password string) error {
 		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
 	}, data.IntIPtoNetIP(c.Gateway))
 	if err != nil {
-		c.stopPacketWorker <- 0
+		go func(c *Client) { c.stopPacketWorker <- 0 }(c)
 		return err
 	}
 

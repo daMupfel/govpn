@@ -221,7 +221,7 @@ func DeserializeAndDecryptPacket(r io.Reader) (*PacketHeader, []byte, error) {
 			fmt.Println(err)
 			return nil, nil, err
 		}
-		fmt.Println("Read", n, "bytes")
+		//fmt.Println("Read", n, "bytes")
 		offset += n
 	}
 	//fmt.Println("Read complete packet")
