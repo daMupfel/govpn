@@ -72,6 +72,7 @@ func (c *Client) handleClientHello(b []byte) (err error) {
 		return
 	}
 	c.Name = p.Name
+	c.MAC = p.MAC
 	fmt.Println("Client with credentials (" + c.Name + "," + p.Password + ") connected")
 	sh := &data.ServerHello{
 		OK:    true,
