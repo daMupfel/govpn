@@ -215,14 +215,16 @@ func DeserializeAndDecryptPacket(r io.Reader) (*PacketHeader, []byte, error) {
 
 	b = make([]byte, pktHdr.PacketSize)
 	offset = 0
-	for offset < int(pktHdr.PacketSize) {
+	for offset < int(uint(pktHdr.PacketSize)) {
 		n, err := r.Read(b[offset:])
 		if err != nil {
+			fmt.Println(err)
 			return nil, nil, err
 		}
+		fmt.Println("Read", offset, "bytes")
 		offset += n
 	}
-
+	fmt.Println("Read complete packet")
 	buf, err := crypto.Decrypt(pktHdr.EncryptionType, b, nil)
 	if err != nil {
 		return nil, nil, err
