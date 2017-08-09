@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/daMupfel/govpn/adapter"
 	"github.com/daMupfel/govpn/data"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -45,6 +46,10 @@ type Group struct {
 	sync.Mutex
 	Name     string
 	Password string
+
+	iface            *adapter.TAPInterface
+	ifaceSendQueue   chan []byte
+	stopIfaceWorkers chan int
 
 	Net       data.IPAddr
 	Mask      data.IPAddr
@@ -273,6 +278,13 @@ func (i *Instance) LeaveGroup(c *Client) *data.LeaveGroupResponse {
 	delete(c.group.Clients, c.MAC)
 	if len(c.group.Clients) == 0 {
 		delete(i.ActiveGroups, c.group.Name)
+
+		//Stop the processing
+		go func(g *Group) {
+			g.stopIfaceWorkers <- 1
+			g.iface.Stop()
+		}(c.group)
+
 	} else {
 		nft := &data.ClientLeftGroupNotification{
 			IP:   c.IP,
@@ -290,6 +302,7 @@ func (i *Instance) LeaveGroup(c *Client) *data.LeaveGroupResponse {
 		}
 	}
 	c.group.Unlock()
+
 	c.group = nil
 	return &data.LeaveGroupResponse{
 		OK:    true,
@@ -372,11 +385,13 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 	}
 
 	grp := &Group{
-		Name:     name,
-		Password: req.Password,
-		Net:      req.NetworkAddr,
-		Mask:     req.NetworkSubnetMask,
-		Clients:  make(map[data.MACAddr]*Client),
+		Name:             name,
+		Password:         req.Password,
+		Net:              req.NetworkAddr,
+		Mask:             req.NetworkSubnetMask,
+		Clients:          make(map[data.MACAddr]*Client),
+		ifaceSendQueue:   make(chan []byte, 16),
+		stopIfaceWorkers: make(chan int),
 	}
 
 	grp.GatewayIP, err = grp.generateGatewayIP()
@@ -387,11 +402,6 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 		}
 	}
 
-	grp.Clients[c.MAC] = c
-	c.group = grp
-
-	i.ActiveGroups[name] = grp
-
 	ip, err := grp.generateNextIP()
 	if err != nil {
 		return &data.CreateGroupResponse{
@@ -399,12 +409,76 @@ func (i *Instance) CreateGroup(req *data.CreateGroupRequest, c *Client) *data.Cr
 			Error: "Group contains too little ips",
 		}
 	}
+
+	grp.iface, err = adapter.Create()
+	if err != nil {
+		return &data.CreateGroupResponse{
+			OK:    false,
+			Error: err.Error(),
+		}
+	}
+
+	err = grp.iface.Configure(net.IPNet{IP: data.IntIPtoNetIP(grp.Net), Mask: net.IPMask(data.IntIPtoNetIP(grp.Mask))}, data.IntIPtoNetIP(grp.GatewayIP))
+	if err != nil {
+		return &data.CreateGroupResponse{
+			OK:    false,
+			Error: err.Error(),
+		}
+	}
+
+	go grp.recvPacketWorker()
+
+	grp.Clients[c.MAC] = c
+	c.group = grp
+
+	i.ActiveGroups[name] = grp
+
 	return &data.CreateGroupResponse{
 		OK:      true,
 		Error:   "",
 		IP:      ip,
 		Netmask: grp.Mask,
 		Gateway: grp.GatewayIP,
+	}
+}
+func (g *Group) recvPacketWorker() {
+	for {
+		select {
+		case <-g.stopIfaceWorkers:
+			return
+		case p := <-g.iface.RecvPacketQueue:
+			pkt := gopacket.NewPacket(p, layers.LayerTypeEthernet, gopacket.Default)
+			ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+			if ethernetLayer == nil {
+				fmt.Println("Packet does not contain ethernet frame...")
+				continue
+			}
+			ep, _ := ethernetLayer.(*layers.Ethernet)
+			dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
+			g.Lock()
+			if dstMAC == data.BroadcastMAC {
+				for _, client := range g.Clients {
+					buf := make([]byte, len(p))
+					copy(buf, p)
+					client.packetQueue <- &queuedPacket{
+						buf:        buf,
+						packetType: data.PacketTypeEthernetFrame,
+					}
+				}
+			} else {
+				client, ok := g.Clients[dstMAC]
+				if !ok {
+					fmt.Println("Packet not for our clients")
+					continue
+				}
+				client.packetQueue <- &queuedPacket{
+					buf:        p,
+					packetType: data.PacketTypeEthernetFrame,
+				}
+			}
+
+			g.Unlock()
+		}
 	}
 }
 

@@ -1,9 +1,11 @@
 // +build linux
 
-package client
+package adapter
 
-import "net"
-import "os/exec"
+import (
+	"net"
+	"os/exec"
+)
 
 func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
 	err := exec.Command("ip", "addr", "add", ipNet.String(), "dev", name).Run()

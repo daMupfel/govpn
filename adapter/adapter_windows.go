@@ -1,6 +1,6 @@
 // +build windows
 
-package client
+package adapter
 
 import (
 	"net"

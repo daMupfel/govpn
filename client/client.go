@@ -7,8 +7,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/daMupfel/govpn/adapter"
 	"github.com/daMupfel/govpn/data"
-	"github.com/songgao/water"
 )
 
 type ClientInfo struct {
@@ -35,7 +35,7 @@ type Client struct {
 
 	conn net.Conn
 
-	iface *water.Interface
+	iface *adapter.TAPInterface
 
 	handshakeDone bool
 	encType       uint8
@@ -48,10 +48,7 @@ type Client struct {
 }
 
 func New(name, password, nw, addr string) (*Client, error) {
-	cfg := water.Config{
-		DeviceType: water.TAP,
-	}
-	iface, err := water.New(cfg)
+	iface, err := adapter.Create()
 	if err != nil {
 		return nil, err
 	}
@@ -61,16 +58,10 @@ func New(name, password, nw, addr string) (*Client, error) {
 		return nil, err
 	}
 
-	nif, err := net.InterfaceByName(iface.Name())
-	if err != nil {
-		return nil, err
-	}
-
-	mac := data.HWAddrToMACAddr(nif.HardwareAddr)
 	client := &Client{
 		Name:             name,
 		Password:         password,
-		MAC:              mac,
+		MAC:              iface.MAC,
 		conn:             c,
 		handshakeDone:    false,
 		encType:          0,
@@ -125,8 +116,7 @@ func (c *Client) DoHandshake() error {
 
 	return nil
 }
-
-func (c *Client) CreateGroup(groupName, password string) error {
+func (c *Client) JoinGroup(groupName, password string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.isInGroup {
@@ -137,7 +127,61 @@ func (c *Client) CreateGroup(groupName, password string) error {
 		Password: password,
 	}
 	b := req.Serialize()
-	err := data.EncryptAndSerializePacket(c.encType, data.PacketTypeCreateGroupRequest, b, c.conn)
+	err := data.EncryptAndSerializePacket(c.encType, data.PacketTypeJoinGroupRequest, b, c.conn)
+	if err != nil {
+		return err
+	}
+	buf, err := c.startEthernetPacketHandler(data.PacketTypeJoinGroupResponse)
+	if err != nil {
+		return err
+	}
+	resp := data.JoinGroupResponse{}
+	err = json.Unmarshal(buf, &resp)
+	if err != nil {
+		c.stopPacketWorker <- 0
+		return err
+	}
+	if !resp.OK {
+		c.stopPacketWorker <- 0
+		return errors.New(resp.Error)
+	}
+	c.IP = resp.IP
+	c.Gateway = resp.Gateway
+	c.Network = resp.IP & resp.Netmask
+	c.SubnetMask = resp.Netmask
+	c.OtherClients = make(map[string]*ClientInfo, len(resp.Clients))
+	for _, otherClient := range resp.Clients {
+		c.OtherClients[otherClient.UserName] = &ClientInfo{
+			Name: otherClient.UserName,
+			IP:   data.IPToString(otherClient.IP),
+		}
+	}
+	c.isInGroup = true
+	return nil
+}
+func (c *Client) CreateGroup(groupName, password, network string) error {
+	_, n, err := net.ParseCIDR(network)
+	if err != nil {
+		return err
+	}
+
+	n.IP = n.IP.To4()
+	if n.IP == nil {
+		return errors.New("Invalid network address: " + network)
+	}
+	c.Lock()
+	defer c.Unlock()
+	if c.isInGroup {
+		return errors.New("Already in a group")
+	}
+	req := &data.CreateGroupRequest{
+		Name:              groupName,
+		Password:          password,
+		NetworkAddr:       data.NetIPtoIntIP(n.IP),
+		NetworkSubnetMask: data.NetIPtoIntIP(net.IP(n.Mask)),
+	}
+	b := req.Serialize()
+	err = data.EncryptAndSerializePacket(c.encType, data.PacketTypeCreateGroupRequest, b, c.conn)
 	if err != nil {
 		return err
 	}
@@ -164,9 +208,27 @@ func (c *Client) CreateGroup(groupName, password string) error {
 	return nil
 }
 
-//TODO: set iface ip addr n stuff
+func (c *Client) LeaveGroup() error {
+	c.Lock()
+	defer c.Unlock()
+	if !c.isInGroup {
+		return errors.New("Not in a group")
+	}
+	req := data.LeaveGroupRequest{}
+	b := req.Serialize()
+	c.packetQueue <- &queuedPacket{
+		buf:        b,
+		packetType: data.PacketTypeLeaveGroupRequest,
+	}
+	return nil
+}
+func (c *Client) IsInGroup() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.isInGroup
+}
 func (c *Client) setAdapterAddress() error {
-	return setAdapterAddress(c.iface.Name(), net.IPNet{
+	return c.iface.Configure(net.IPNet{
 		IP:   data.IntIPtoNetIP(c.IP),
 		Mask: net.IPMask(data.IntIPtoNetIP(c.SubnetMask)),
 	}, data.IntIPtoNetIP(c.Gateway))
@@ -192,7 +254,7 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			}
 			switch hdr.PacketType {
 			case data.PacketTypeEthernetFrame:
-				c.etherPacketQueue <- buf
+				c.iface.SendPacketQueue <- buf
 				continue
 			case data.PacketTypeClientJoinedGroupNotification:
 				c.handleGroupClientChange(true, buf)
@@ -257,20 +319,43 @@ func (c *Client) readAndQueuePackets() {
 				c.stopPacketWorker <- k + 1
 			}
 			return
-		default:
-			b := make([]byte, 1600)
-			n, err := c.iface.Read(b)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			b = b[:n]
-
+		case p := <-c.iface.RecvPacketQueue:
 			c.packetQueue <- &queuedPacket{
-				buf:        b,
+				buf:        p,
 				packetType: data.PacketTypeEthernetFrame,
 			}
 		}
+	}
+}
+
+func (c *Client) ListGroups() ([]string, error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.isInGroup {
+		return nil, errors.New("Already in a group")
+	}
+	req := &data.ListGroupsRequest{}
+	b := req.Serialize()
+
+	err := data.EncryptAndSerializePacket(c.encType, data.PacketTypeListGroupsRequest, b, c.conn)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		hdr, pkt, err := data.DeserializeAndDecryptPacket(c.conn)
+		if err != nil {
+			return nil, err
+		}
+		if hdr.PacketType != data.PacketTypeListGroupsResponse {
+			fmt.Println("Unexpected packet type:", hdr.PacketType)
+			continue
+		}
+		resp := data.ListGroupsResponse{}
+		err = json.Unmarshal(pkt, &resp)
+		if err != nil {
+			return nil, err
+		}
+		return resp.Groups, nil
 	}
 }

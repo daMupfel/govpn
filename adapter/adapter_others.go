@@ -1,6 +1,6 @@
-// +build darwin
+// +build darwin plan9
 
-package client
+package adapter
 
 import (
 	"errors"
