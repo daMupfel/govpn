@@ -235,7 +235,7 @@ func EncryptAndSerializePacket(encryptionType, packetType uint8, buffer []byte, 
 	if err != nil {
 		return err
 	}
-	l := len(b) + 4
+	l := len(b)
 	if l >= 0x10000 {
 		return errors.New("Packet overflow")
 	}
