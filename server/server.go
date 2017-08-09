@@ -459,6 +459,7 @@ func (g *Group) recvPacketWorker() {
 			dstMAC := data.HWAddrToMACAddr(ep.DstMAC)
 			g.Lock()
 			if dstMAC == data.BroadcastMAC {
+				fmt.Println("Sending broadcast packet to all clients")
 				for _, client := range g.Clients {
 					buf := make([]byte, len(p))
 					copy(buf, p)
@@ -473,6 +474,7 @@ func (g *Group) recvPacketWorker() {
 					fmt.Println("Packet not for our clients: ", data.MACAddrToString(dstMAC))
 					continue
 				}
+				fmt.Println("Sending packet to client " + client.Name)
 				client.packetQueue <- &queuedPacket{
 					buf:        p,
 					packetType: data.PacketTypeEthernetFrame,

@@ -268,6 +268,7 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 			if err != nil {
 				return nil, err
 			}
+			fmt.Println("Packet with type ", hdr.PacketType)
 			if hdr.PacketType == packetTypeToRespond {
 				go c.startEthernetPacketHandler(0xFF)
 				go c.readAndQueuePackets()
@@ -292,6 +293,7 @@ func (c *Client) startEthernetPacketHandler(packetTypeToRespond uint8) ([]byte, 
 }
 
 func (c *Client) handleLeaveGroup(buf []byte) {
+	fmt.Println("handleLeaveGroup")
 	resp := data.LeaveGroupResponse{}
 	err := json.Unmarshal(buf, &resp)
 	if err != nil {
@@ -302,11 +304,13 @@ func (c *Client) handleLeaveGroup(buf []byte) {
 		fmt.Println(resp.Error)
 		return
 	}
+	fmt.Println("left group")
 	c.stopPacketWorker <- 0
 	c.iface.Stop()
 }
 
 func (c *Client) handleGroupClientChange(joined bool, buf []byte) {
+	fmt.Println("handleGroupClientChange")
 	if joined {
 		resp := data.ClientJoinedGroupNotification{}
 		err := json.Unmarshal(buf, &resp)
