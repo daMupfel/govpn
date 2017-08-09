@@ -34,7 +34,6 @@ func main() {
 		fmt.Println("Enter command: ")
 		input, _ := reader.ReadString('\n')
 		args := strings.Split(input, " ")
-		ok := false
 		switch args[0] {
 		case "create":
 			createGroup(c, args)
