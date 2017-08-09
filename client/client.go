@@ -316,6 +316,7 @@ func (c *Client) handleLeaveGroup(buf []byte) {
 		return
 	}
 	fmt.Println("left group")
+	c.isInGroup = false
 	c.stopPacketWorker <- 0
 	c.iface.Stop()
 }
