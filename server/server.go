@@ -301,6 +301,7 @@ func (i *Instance) LeaveGroup(c *Client) *data.LeaveGroupResponse {
 		go func(g *Group) {
 			g.stopIfaceWorkers <- 1
 			g.iface.Stop()
+			g.iface.Close()
 		}(c.group)
 
 	} else {

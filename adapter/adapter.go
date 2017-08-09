@@ -48,6 +48,8 @@ func Create() (*TAPInterface, error) {
 	t.SendPacketQueue = make(chan []byte, 16)
 
 	t.stopWorkerChan = make(chan int, 2)
+	go t.readWorker()
+	go t.writeWorker()
 	return t, nil
 }
 
@@ -57,14 +59,16 @@ func (t *TAPInterface) Configure(ipNet net.IPNet, gateway net.IP) error {
 		return err
 	}
 
-	go t.readWorker()
-	go t.writeWorker()
 	return nil
 }
-
+func (t *TAPInterface) Close() {
+	t.iface.Close()
+}
 func (t *TAPInterface) Stop() {
+	/*
 	t.stopWorkerChan <- 0
-	/*t.iface.Close()
+
+	t.iface.Close()
 	t.iface, _ = water.New(getConfig())
 
 	t.RecvPacketQueue = make(chan []byte, 16)
