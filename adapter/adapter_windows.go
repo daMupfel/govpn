@@ -12,7 +12,7 @@ import (
 func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
 	return exec.Command("netsh", "interface", "ip", "set", "address",
 		"name=", name, "source=static", "address="+ipNet.String(),
-		"mask="+net.IP(ipNet.Mask).String(), "gateway="+gateway.String()).Run()
+		"mask="+net.IP(ipNet.Mask).String()).Run()
 }
 
 func stopDevice(name string) error {
