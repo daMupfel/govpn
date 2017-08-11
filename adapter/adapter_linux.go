@@ -18,7 +18,7 @@ func setAdapterAddress(name string, ipNet net.IPNet, gateway net.IP) error {
 }
 
 func stopDevice(name string) error {
-	return exec.Command("ip", "link", "set", "dev", name, "down").Run()
+	return exec.Command("ip", "addr", "flush", "dev", name).Run()
 }
 
 func getConfig() water.Config {
