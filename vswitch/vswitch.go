@@ -234,7 +234,7 @@ func (s *VSwitch) handleMessage(msg *aggregatedChannelMsg) {
 
 func (s *VSwitch) invalidateLookupTable() {
 	for v, entry := range s.lookupTable {
-		if port.idle {
+		if entry.idle {
 			delete(s.lookupTable, v)
 		}
 		entry.idle = true
