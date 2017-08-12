@@ -16,8 +16,6 @@ type vSwitchPort struct {
 	sendPacketChan chan<- []byte
 	readPacketChan <-chan []byte
 	stopChan       chan int
-
-	idle bool
 }
 
 type aggregatedChannelMsg struct {
@@ -33,6 +31,11 @@ type portRemoveMsg struct {
 	returnChan chan bool
 }
 
+type lookupTableEntry struct {
+	port *vSwitchPort
+	idle bool
+}
+
 type VSwitch struct {
 	sync.Mutex
 
@@ -43,7 +46,7 @@ type VSwitch struct {
 
 	portIdGenerator PortIdentifier
 
-	lookupTable map[data.MACAddr]*vSwitchPort
+	lookupTable map[data.MACAddr]*lookupTableEntry
 
 	stopWorker        chan bool
 	aggregatedChannel chan *aggregatedChannelMsg
@@ -57,7 +60,7 @@ func New(name string, idleDuration time.Duration) (*VSwitch, error) {
 	s := &VSwitch{
 		Name:              name,
 		IdleDuration:      idleDuration,
-		lookupTable:       make(map[data.MACAddr]*vSwitchPort),
+		lookupTable:       make(map[data.MACAddr]*lookupTableEntry),
 		ports:             make(map[PortIdentifier]*vSwitchPort),
 		stopWorker:        make(chan bool),
 		aggregatedChannel: make(chan *aggregatedChannelMsg),
@@ -98,7 +101,6 @@ func (s *VSwitch) AddPort(receiveChan chan<- []byte, sendChan <-chan []byte) Por
 	msg := &portAddMsg{
 		identifierReturnChan: make(chan PortIdentifier),
 		port: &vSwitchPort{
-			idle: true,
 			//client perspective to server perspective
 			readPacketChan: sendChan,
 			sendPacketChan: receiveChan,
@@ -203,14 +205,18 @@ func (s *VSwitch) handleMessage(msg *aggregatedChannelMsg) {
 		return
 	}
 
-	msg.port.idle = false
-	if _, ok := s.lookupTable[sMac]; !ok {
-		s.lookupTable[sMac] = msg.port
+	if e, ok := s.lookupTable[sMac]; ok {
+		e.idle = false
+	} else {
+		s.lookupTable[sMac] = &lookupTableEntry{
+			port: msg.port,
+			idle: false,
+		}
 	}
 
 	if dst, ok := s.lookupTable[dMac]; ok {
 		select {
-		case dst.sendPacketChan <- msg.packet:
+		case dst.port.sendPacketChan <- msg.packet:
 		default:
 		}
 	} else {
@@ -227,10 +233,10 @@ func (s *VSwitch) handleMessage(msg *aggregatedChannelMsg) {
 }
 
 func (s *VSwitch) invalidateLookupTable() {
-	for v, port := range s.lookupTable {
+	for v, entry := range s.lookupTable {
 		if port.idle {
 			delete(s.lookupTable, v)
 		}
-		port.idle = true
+		entry.idle = true
 	}
 }
