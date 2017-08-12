@@ -76,6 +76,8 @@ func (m *Manager) handleClientMessage(msg interface{}) {
 		m.handleListVSwitches(msg)
 	case *joinVSwitchRequest:
 		m.handleJoinVSwitch(msg)
+	case *leaveVSwitchRequest:
+		m.handleLeaveVSwitch(msg)
 	}
 }
 
